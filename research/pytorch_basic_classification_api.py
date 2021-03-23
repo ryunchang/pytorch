@@ -12,6 +12,9 @@ import platform
 import matplotlib.pyplot as plt
 import numpy as np
 
+import threading
+import time
+
 
 def imshow(img):
      npimg = img.numpy() #convert the tensor to numpy for displaying the image
@@ -19,6 +22,20 @@ def imshow(img):
      plt.imshow(np.transpose(npimg, (1, 2, 0))) 
      plt.show()
 
+class Worker(threading.Thread):
+    def __init__(self, name, args):
+        super().__init__()
+        self.name = name
+        self._args = args
+
+    def run(self):
+        start_time = time.time()
+        for epoch in range(1, self._args[5] + 1):
+            print(self._args[2], "에서", epoch, "회 에폭 실행")
+            train(self._args[0], self._args[1], self._args[2], self._args[3], self._args[4], epoch)
+            test(self._args[1], self._args[2], self._args[3])
+        stop_time = time.time()
+        print("duration : ", stop_time - start_time)
 
 # build a network model, 
 class Net(nn.Module):
@@ -52,7 +69,7 @@ def train(log_interval, model, device, train_loader, optimizer, epoch):
         optimizer.step()
         running_loss += loss.item()
         if batch_idx % log_interval == 0:
-            print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
+            print(device, ' Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                 epoch, batch_idx * len(data), len(train_loader.dataset),
                 100. * batch_idx / len(train_loader), running_loss/log_interval))
             running_loss =0.0
@@ -92,9 +109,11 @@ def main():
     print(torch.cuda.is_available())
     use_cuda = torch.cuda.is_available()
     print("use_cude : ", use_cuda)
-    device = torch.device("cuda" if use_cuda else "cpu")
-    print(device)
-    device = "cpu"
+    
+    #device = torch.device("cuda" if use_cuda else "cpu")
+    device1 = "cpu"
+    device2 = "cuda"
+
     nThreads = 1 if use_cuda else 2 
     if platform.system() == 'Windows':
         nThreads =0 #if you use windows
@@ -125,16 +144,21 @@ def main():
     classes = ('T-shirt/top', 'Trouser', 'Pullover', 'Dress', 'Coat',
             'Sandal', 'Shirt', 'Sneaker', 'Bag', 'Ankle Boot')
     # model
-    model = Net().to(device)
-
-
-    #optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
-    optimizer = optim.Adam(model.parameters(),lr=learning_rate)
+    model1 = Net().to(device1)
+    model2 = Net().to(device2)
     
-    for epoch in range(1, epochs + 1):
-        train(log_interval, model, device, train_loader, optimizer, epoch)
-        test(model, device, test_loader)
+    #optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
+    optimizer1 = optim.Adam(model1.parameters(),lr=learning_rate)
+    optimizer2 = optim.Adam(model2.parameters(),lr=learning_rate)
 
+    device_args1 = (log_interval, model1, device1, train_loader, optimizer1, epochs)
+    device_args2 = (log_interval, model2, device2, train_loader, optimizer2, epochs)
+
+    task1 = Worker(device1+" task", device_args1)
+    task2 = Worker(device2+" task", device_args2)
+
+    task1.start()
+    task2.start()
 
 if __name__ == '__main__':
     main()

@@ -527,27 +527,18 @@ class Module:
 
     def _apply(self, fn):
         for module in self.children():
+            print(module, "모듈 _apply() 시작")
             module._apply(fn)
+            print(module, "모듈 _apply() 끝")
 
         def compute_should_use_set_data(tensor, tensor_applied):
             if torch._has_compatible_shallow_copy_type(tensor, tensor_applied):
-                # If the new tensor has compatible tensor type as the existing tensor,
-                # the current behavior is to change the tensor in-place using `.data =`,
-                # and the future behavior is to overwrite the existing tensor. However,
-                # changing the current behavior is a BC-breaking change, and we want it
-                # to happen in future releases. So for now we introduce the
-                # `torch.__future__.get_overwrite_module_params_on_conversion()`
-                # global flag to let the user control whether they want the future
-                # behavior of overwriting the existing tensor or not.
                 return not torch.__future__.get_overwrite_module_params_on_conversion()
             else:
                 return False
 
         for key, param in self._parameters.items():
             if param is not None:
-                # Tensors stored in modules are graph leaves, and we don't want to
-                # track autograd history of `param_applied`, so we have to use
-                # `with torch.no_grad():`
                 with torch.no_grad():
                     param_applied = fn(param)
                 should_use_set_data = compute_should_use_set_data(param, param_applied)
@@ -763,7 +754,7 @@ class Module:
                     [-0.5113, -0.2325]])
             >>> linear.to(torch.double)
             Linear(in_features=2, out_features=2, bias=True)
-            >>> linear.weight
+            >>> linear._applyweight
             Parameter containing:
             tensor([[ 0.1913, -0.3420],
                     [-0.5113, -0.2325]], dtype=torch.float64)
@@ -793,7 +784,8 @@ class Module:
                     [0.6122+0.j, 0.1150+0.j]], dtype=torch.complex128)
 
         """
-
+        print("to()매서드 호출")
+        
         device, dtype, non_blocking, convert_to_format = torch._C._nn._parse_to(*args, **kwargs)
 
         if dtype is not None:
@@ -808,6 +800,8 @@ class Module:
                     "if a complex module does not work as expected.")
 
         def convert(t):
+            print("convert(t) 함수 호출")
+            #print("device 변수 : ", device)
             if convert_to_format is not None and t.dim() == 4:
                 return t.to(device, dtype if t.is_floating_point() or t.is_complex() else None,
                             non_blocking, memory_format=convert_to_format)
@@ -1489,6 +1483,7 @@ class Module:
             Module: a child module
         """
         for name, module in self.named_children():
+            #print("children() : ", name)
             yield module
 
     def named_children(self) -> Iterator[Tuple[str, 'Module']]:

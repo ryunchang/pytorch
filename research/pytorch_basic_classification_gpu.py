@@ -12,6 +12,8 @@ import platform
 import matplotlib.pyplot as plt
 import numpy as np
 
+import time
+
 
 def imshow(img):
      npimg = img.numpy() #convert the tensor to numpy for displaying the image
@@ -131,10 +133,13 @@ def main():
     #optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
     optimizer = optim.Adam(model.parameters(),lr=learning_rate)
     
+    start_time = time.time()
     for epoch in range(1, epochs + 1):
         train(log_interval, model, device, train_loader, optimizer, epoch)
         test(model, device, test_loader)
 
+    stop_time = time.time()
+    print("duration : ", stop_time - start_time)
 
 if __name__ == '__main__':
     main()
