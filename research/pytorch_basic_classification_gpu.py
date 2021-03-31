@@ -7,10 +7,12 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+from torchsummary import summary
 
 import platform
 import matplotlib.pyplot as plt
 import numpy as np
+
 
 import time
 
@@ -124,11 +126,12 @@ def main():
                                             shuffle=False, num_workers=nThreads)
 
     # constant for classes
-    classes = ('T-shirt/top', 'Trouser', 'Pullover', 'Dress', 'Coat',
-            'Sandal', 'Shirt', 'Sneaker', 'Bag', 'Ankle Boot')
+    #classes = ('T-shirt/top', 'Trouser', 'Pullover', 'Dress', 'Coat',
+    #        'Sandal', 'Shirt', 'Sneaker', 'Bag', 'Ankle Boot')
+    
     # model
     model = Net().to(device)
-
+    summary(model, input_size=(1, 28, 28))
 
     #optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
     optimizer = optim.Adam(model.parameters(),lr=learning_rate)
@@ -140,6 +143,10 @@ def main():
 
     stop_time = time.time()
     print("duration : ", stop_time - start_time)
+
+    # Save model
+    torch.save(model.state_dict(), "/home/yoon/Yoon/pytorch/research/save_model/fashion_mnist.pth")
+
 
 if __name__ == '__main__':
     main()

@@ -685,6 +685,7 @@ at::Tensor _convolution(
 
   Tensor output;
   if (params.is_depthwise(input, weight)) {
+      std::cout << "is_depthwise" << std::endl;
       /* output.resize_(output_size(input, weight)); */
 
       auto kernel_size = weight.sizes().slice(2);
@@ -713,6 +714,7 @@ at::Tensor _convolution(
           }
       }
   } else if (params.use_cudnn(input, weight)) {
+    std::cout << "use_cudnn" << std::endl;
     TORCH_CHECK(input.options().type_equal(weight.options()),
              "Input type (", input.toString(), ") and weight type (", weight.toString(),
              ") should be the same");
@@ -736,6 +738,7 @@ at::Tensor _convolution(
       }
     }
   } else if (params.use_miopen(input, weight, bias.defined())) {
+    std::cout << "use_miopen" << std::endl;
     TORCH_CHECK(input.options().type_equal(weight.options()),
              "Input type (", input.toString(), ") and weight type (", weight.toString(),
              ") should be the same");
@@ -753,6 +756,7 @@ at::Tensor _convolution(
           params.padding, params.stride, params.dilation, params.groups, params.benchmark, params.deterministic);
     }
   } else if (params.use_mkldnn(input, weight)) {
+    std::cout << "use_mkldnn" << std::endl;
 #if AT_MKLDNN_ENABLED()
     TORCH_CHECK(input.options().type_equal(weight.options())
              || (input.is_mkldnn() && weight.device().is_cpu() && weight.scalar_type() == kFloat),
@@ -772,6 +776,7 @@ at::Tensor _convolution(
     }
 #endif
   } else if (params.use_xnnpack(input, weight, bias)) {
+    std::cout << "use_xnnpack" << std::endl;
     // Using prepacked conv is preferred, but XNNPACK is still the fastest
     // option for NHWC.
     output = xnnpack::convolution2d(
@@ -783,6 +788,7 @@ at::Tensor _convolution(
         params.dilation,
         params.groups);
   } else if (params.use_cpu_depthwise3x3_winograd(input, weight, bias)) {
+    std::cout << "use_cpu_depthwise3x3_winograd" << std::endl;
     output = convolution_depthwise3x3_winograd_stub(
         input.device().type(),
         input,
@@ -795,6 +801,7 @@ at::Tensor _convolution(
         !params.transposed && (input.ndimension() == 5) &&
         (input.device().is_cpu()) &&
         !params.is_dilated()) {
+      std::cout << "device().is_cpu() && is_dilated" << std::endl;
       // fast path for grouped conv3d
       output = at::slow_conv3d(
           input,
@@ -804,6 +811,7 @@ at::Tensor _convolution(
           params.stride,
           params.padding);
   } else if (input.device().is_cpu() || input.is_cuda()) {
+    std::cout << "device().is_cpu() && is_cuda()" << std::endl;
     if (params.groups == 1) {
       output = at::_convolution_nogroup(
           input.contiguous(), weight, bias, params.stride, params.padding, params.dilation, params.transposed, params.output_padding);
@@ -820,6 +828,7 @@ at::Tensor _convolution(
       output = at::cat(outputs, 1);
     }
   } else {
+    std::cout << "else" << std::endl;
     // Only reach here when input is backend with out-of-source implementation.
     output = at::convolution_overrideable(input, weight, bias, params.stride, params.padding, params.dilation, params.transposed, params.output_padding, params.groups);
   }
