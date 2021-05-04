@@ -142,9 +142,9 @@ def main():
             'Sandal', 'Shirt', 'Sneaker', 'Bag', 'Ankle Boot')
     # model
     model1 = Net().to(device1)
-    #model1.share_memory()
+    model1.share_memory()
     model2 = Net().to(device2)
-    #model2.share_memory()
+    model2.share_memory()
     
     #optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
     optimizer1 = optim.Adam(model1.parameters(),lr=learning_rate)
@@ -158,6 +158,7 @@ def main():
     
     num_processes = (proc1, proc2) 
     processes = []
+    
     for procs in num_processes:
         procs.start()
         processes.append(procs)

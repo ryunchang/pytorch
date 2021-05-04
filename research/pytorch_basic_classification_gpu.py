@@ -28,19 +28,70 @@ def imshow(img):
 class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
-        self.conv1 = nn.Conv2d(1, 32, 5) #in, out, filtersize
+        self.conv1 = nn.Conv2d(1, 6, 5) #in, out, filtersize
         self.pool = nn.MaxPool2d(2, 2) #2x2 pooling
-        self.conv2 = nn.Conv2d(32, 64, 5)
-        self.fc1 = nn.Linear(64 * 4 * 4, 1000)
+        self.conv2 = nn.Conv2d(6, 12, 5)
+        self.fc1 = nn.Linear(12 * 4 * 4, 1000)
         self.fc2 = nn.Linear(1000, 10)
     
     def forward(self, x):
-        x = self.pool(F.relu(self.conv1(x)))
-        x = self.pool(F.relu(self.conv2(x)))
-        x = x.view(-1, 64 * 4 * 4)
-        x = F.relu(self.fc1(x))
+        x = self.conv1(x)
+        print('x = self.conv1(x) 호출완료')
+
+        x = F.relu(x)
+        print('x = F.relu(x)')
+        
+        x = self.pool(x)
+        print('x = self.pool(x)')
+        
+        x = self.conv2(x)
+        print('x = self.conv2(x)')
+        
+        x = F.relu(x)
+        print('x = F.relu(x)')
+
+        x = self.pool(x)
+        print('x = self.pool(x)')
+
+        x = x.view(-1, 12 * 4 * 4)
+        print('x = x.view(-1, 12 * 4 * 4)')
+
+        x = self.fc1(x)
+        print('x = self.fc1(x)')
+
+        x = F.relu(x)
+        print('x = F.relu(x)')
+
         x = self.fc2(x)
+        print('x = self.fc2(x)')
+
+        #x = self.pool(F.relu(self.conv1(x)))
+        #x = self.pool(F.relu(self.conv2(x)))
+        #x = x.view(-1, 12 * 4 * 4)
+        #x = F.relu(self.fc1(x))
+        #x = self.fc2(x)
+        print("forward 완료. time sleep 중 입니다 Zzz..")
+        #time.sleep(3)
         return x
+
+
+# build a network model, 
+#class Net(nn.Module):
+#    def __init__(self):
+#        super(Net, self).__init__()
+#        self.conv1 = nn.Conv2d(1, 32, 5) #in, out, filtersize
+#        self.pool = nn.MaxPool2d(2, 2) #2x2 pooling
+#        self.conv2 = nn.Conv2d(32, 64, 5)
+#        self.fc1 = nn.Linear(64 * 4 * 4, 1000)
+#        self.fc2 = nn.Linear(1000, 10)
+#    
+#    def forward(self, x):
+#        x = self.pool(F.relu(self.conv1(x)))
+#        x = self.pool(F.relu(self.conv2(x)))
+#        x = x.view(-1, 64 * 4 * 4)
+#        x = F.relu(self.fc1(x))
+#        x = self.fc2(x)
+#        return x
 
 
 def train(log_interval, model, device, train_loader, optimizer, epoch):
@@ -132,7 +183,9 @@ def main():
     # model
     model = Net().to(device)
     summary(model, input_size=(1, 28, 28))
-
+    kernels = model.conv1.weight.detach().clone()
+    print("?@@@@" , kernels)
+    time.sleep(5)
     #optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
     optimizer = optim.Adam(model.parameters(),lr=learning_rate)
     

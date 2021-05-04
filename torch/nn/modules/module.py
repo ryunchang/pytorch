@@ -1001,9 +1001,9 @@ class Module:
         return result
 
     def _call_impl(self, *input, **kwargs):
-        print("__call__ 호출")
+#        print("__call__ 호출")
         forward_call = (self._slow_forward if torch._C._get_tracing_state() else self.forward)
-        print("forward 안 : ", forward_call)
+#        print("forward 안 : ", forward_call)
         # If we don't have any hooks, we want to skip the rest of the logic in
         # this function, and just call forward.
         if not (self._backward_hooks or self._forward_hooks or self._forward_pre_hooks or _global_backward_hooks

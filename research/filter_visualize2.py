@@ -48,7 +48,7 @@ def visTensor(tensor, ch=0, allkernels=False, nrow=8, padding=1):
 if __name__ == "__main__":
     layer = 1
     model = Net()
-    filter = model.features[layer].weight.data.clone()
+    model.conv1[layer].weight.data.clone()
     visTensor(filter, ch=0, allkernels=False)
 
     plt.axis('off')

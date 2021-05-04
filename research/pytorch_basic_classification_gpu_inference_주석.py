@@ -32,7 +32,7 @@ fig = plt.figure(figsize=(10,10))
 
 
 # build a network model, 
-class Netwqewqewqewqeqweqweqweq(nn.Module):
+class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
         self.conv1 = nn.Conv2d(1, 6, 5) #in, out, filtersize
@@ -101,15 +101,25 @@ class Net(nn.Module):
     def forward(self, x):
         print('@ forward 함수 진입!')
         x = self.conv1(x)
+        print('@ x = self.conv1(x) 호출완료')
         x = F.relu(x)
+        print('@ x = F.relu(x)')
         x = self.pool(x)
+        print('@ x = self.pool(x)')
         x = self.conv2(x)
+        print('@ x = self.conv2(x)')
         x = F.relu(x)
+        print('@ x = F.relu(x)')
         x = self.pool(x)
+        print('@ x = self.pool(x)')
         x = x.view(-1, 12 * 4 * 4)
+        print('@ x = x.view(-1, 12 * 4 * 4)')
         x = self.fc1(x)
+        print('@ x = self.fc1(x)')
         x = F.relu(x)
+        print('@ x = F.relu(x)')
         x = self.fc2(x)
+        print('@ x = self.fc2(x)')
         
 #        x = self.pool(F.relu(self.conv1(x)))
 #        x = self.pool(F.relu(self.conv2(x)))
@@ -140,15 +150,23 @@ test_loader = torch.utils.data.DataLoader(testset, batch_size=test_batch_size,
                                         shuffle=False, num_workers=nThreads)
 
 # model load
+print("@이제 모델을 만듭니다.")
 model = Net().to(device)
+print("@모델을 생성 완료! model = Net().to(device)")
 model.load_state_dict(torch.load("/home/yoon/Yoon/pytorch/research/save_model/fashion_mnist.pth"), strict=False) 
+print("@load_state_dice 완료!")
 model.eval()
+print("@model.eval()완료!")
 
 # inference
 for i in range(1, columns*rows+1):
     data_idx = np.random.randint(len(testset))
+    print("input image 만들고 to(device)")
     input_img = testset[data_idx][0].unsqueeze(dim=0).to(device) 
+    
+    print("@ inference할 데이터를 넣겠습니다.")
     output = model(input_img)
+    print("@ output = model(input_img) 완료!!")
     _, argmax = torch.max(output, 1)
     pred = label_tags[argmax.item()]
     label = label_tags[testset[data_idx][1]]

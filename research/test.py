@@ -13,9 +13,8 @@ import platform
 import matplotlib.pyplot as plt
 import numpy as np
 
-
 import time
-
+import torch.multiprocessing as mp
 
 def imshow(img):
      npimg = img.numpy() #convert the tensor to numpy for displaying the image
@@ -23,53 +22,61 @@ def imshow(img):
      plt.imshow(np.transpose(npimg, (1, 2, 0))) 
      plt.show()
 
-
 # build a network model, 
 class Net(nn.Module):
-    def __init__(self):
+    def __init__(self, shared_queue):
         super(Net, self).__init__()
-        self.conv1 = nn.Conv2d(1, 6, 5) #in, out, filtersize
+        self.conv1 = nn.Conv2d(1, 32, 5) #in, out, filtersize
         self.pool = nn.MaxPool2d(2, 2) #2x2 pooling
-        self.conv2 = nn.Conv2d(6, 12, 5)
-        self.fc1 = nn.Linear(12 * 4 * 4, 1000)
+        self.conv2 = nn.Conv2d(32, 64, 5)
+        self.fc1 = nn.Linear(64 * 4 * 4, 1000)
         self.fc2 = nn.Linear(1000, 10)
-    
+        self.q = shared_queue
+        self.q.put(False)
+
     def forward(self, x):
-        x = self.conv1(x)
-        print('x = self.conv1(x) 호출완료')
+#        x = self.conv1(x)
+#        print('x = self.conv1(x) 호출완료')
 
-        x = F.relu(x)
-        print('x = F.relu(x)')
-        
-        x = self.pool(x)
-        print('x = self.pool(x)')
-        
-        x = self.conv2(x)
-        print('x = self.conv2(x)')
-        
-        x = F.relu(x)
-        print('x = F.relu(x)')
-
-        x = self.pool(x)
-        print('x = self.pool(x)')
-
-        x = x.view(-1, 12 * 4 * 4)
-        print('x = x.view(-1, 12 * 4 * 4)')
-
-        x = self.fc1(x)
-        print('x = self.fc1(x)')
-
-        x = F.relu(x)
-        print('x = F.relu(x)')
-
+#        x = F.relu(x)
+#        print('x = F.relu(x)')
+#        
+#        x = self.pool(x)
+#        print('x = self.pool(x)')
+#        
+#        x = self.conv2(x)
+#        print('x = self.conv2(x)')
+#        
+#        x = F.relu(x)
+#        print('x = F.relu(x)')
+#
+#        x = self.pool(x)
+#        print('x = self.pool(x)')
+#
+#        x = x.view(-1, 64 * 4 * 4)
+#        print('x = x.view(-1, 64 * 4 * 4)')
+#
+#        x = self.fc1(x)
+#        print('x = self.fc1(x)')
+#
+#        x = F.relu(x)
+#        print('x = F.relu(x)')
+#
+#        x = self.fc2(x)
+#        print('x = self.fc2(x)')
+        x = self.pool(F.relu(self.conv1(x)))
+        hook = self.q.get()
+        if hook is False :
+            print(mp.current_process().name, "에서 lock")
+            self.q.put(True)
+        else :
+            print(mp.current_process().name, "에서 release")
+            self.q.put(False)
+        print("@@@@@@@@@@ 첫번째 conv 지나감 @@@@@@@@@@@@@")
+        x = self.pool(F.relu(self.conv2(x)))
+        x = x.view(-1, 64 * 4 * 4)
+        x = F.relu(self.fc1(x))
         x = self.fc2(x)
-        print('x = self.fc2(x)')
-
-        #x = self.pool(F.relu(self.conv1(x)))
-        #x = self.pool(F.relu(self.conv2(x)))
-        #x = x.view(-1, 12 * 4 * 4)
-        #x = F.relu(self.fc1(x))
-        #x = self.fc2(x)
         print("forward 완료. time sleep 중 입니다 Zzz..")
         #time.sleep(3)
         return x
@@ -83,9 +90,9 @@ def train(log_interval, model, device, train_loader, optimizer, epoch):
         data, target = data.to(device), target.to(device)
         print("batch_idx, targer = ", batch_idx,", ", target)
         optimizer.zero_grad()
-        print("################## output = model(data) 호출전 #################")
+        #print("################## output = model(data) 호출전 #################")
         output = model(data)
-        print("################### output = model(data) 호출 ###################")
+        #print("################### output = model(data) 호출 ###################")
         loss = criterion(output, target)
         loss.backward()
         optimizer.step()
@@ -95,9 +102,7 @@ def train(log_interval, model, device, train_loader, optimizer, epoch):
                 epoch, batch_idx * len(data), len(train_loader.dataset),
                 100. * batch_idx / len(train_loader), running_loss/log_interval))
             running_loss =0.0
-
-
-
+:
 def test(model, device, test_loader):
     model.eval()
     test_loss = 0
@@ -119,21 +124,31 @@ def test(model, device, test_loader):
         100. * correct / len(test_loader.dataset)))
 
 
+def my_run(args):
+    start_time = time.time()
+    for epoch in range(1, args[5] + 1):
+        print(args[2], "에서", epoch, "회 에폭 실행")
+        train(args[0], args[1], args[2], args[3], args[4], epoch)
+        test(args[1], args[2], args[3])
+    stop_time = time.time()
+    print("duration : ", stop_time - start_time)
+
 
 def main():
-    epochs = 5
+    epochs = 3
     learning_rate = 0.001
     batch_size = 32
     test_batch_size=1000
     log_interval =100
     
-    #print(torch.cuda.get_device_name(0))
     print(torch.cuda.is_available())
     use_cuda = torch.cuda.is_available()
     print("use_cude : ", use_cuda)
-    device = torch.device("cuda" if use_cuda else "cpu")
-    print(device)
-    #device = "cpu"
+    
+    #device = torch.device("cuda" if use_cuda else "cpu")
+    device1 = "cpu"
+    device2 = "cuda"
+
     nThreads = 1 if use_cuda else 2 
     if platform.system() == 'Windows':
         nThreads =0 #if you use windows
@@ -163,20 +178,37 @@ def main():
     # constant for classes
     classes = ('T-shirt/top', 'Trouser', 'Pullover', 'Dress', 'Coat',
             'Sandal', 'Shirt', 'Sneaker', 'Bag', 'Ankle Boot')
+
+    q = mp.Queue()
+
     # model
-    model = Net().to(device)
-    summary(model, input_size=(1, 28, 28))
-
+    model1 = Net(q).to(device1)
+    #summary(model1, input_size=(1, 28, 28))
+    model1.share_memory()
+    model2 = Net(q).to(device2)
+    #summary(model2, input_size=(1, 28, 28))
+    model2.share_memory()
+     
     #optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
-    optimizer = optim.Adam(model.parameters(),lr=learning_rate)
-    
-    start_time = time.time()
-    for epoch in range(1, epochs + 1):
-        train(log_interval, model, device, train_loader, optimizer, epoch)
-        test(model, device, test_loader)
+    optimizer1 = optim.Adam(model1.parameters(),lr=learning_rate)
+    optimizer2 = optim.Adam(model2.parameters(),lr=learning_rate)
 
-    stop_time = time.time()
-    print("duration : ", stop_time - start_time)
+    device_args1 = (log_interval, model1, device1, train_loader, optimizer1, epochs, q)
+    device_args2 = (log_interval, model2, device2, train_loader, optimizer2, epochs, q)
+
+    proc1 = mp.Process(target=my_run, name="cpu_process", args=(device_args1,))
+    proc2 = mp.Process(target=my_run, name="cuda_process", args=(device_args2,))
+    
+    num_processes = (proc1, proc2) 
+    processes = []
+    
+    for procs in num_processes:
+        procs.start()
+        processes.append(procs)
+    
+    for proc in processes:
+        proc.join()
 
 if __name__ == '__main__':
+    torch.multiprocessing.set_start_method('spawn')# good solution !!!
     main()
