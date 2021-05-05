@@ -30,23 +30,23 @@ test_batch_size=1000
 columns = 6
 rows = 6
 
-# CPU
+# CPU and MAIN
 class Net(nn.Module):
-    def __init__(self, _q):
+    def __init__(self, shared_queue):
         super(Net, self).__init__()
-        self.conv1 = nn.Conv2d(1, 6, 5) #in, out, filtersize
+        self.conv1 = nn.Conv2d(1, 2, 5) #in, out, filtersize
         self.pool = nn.MaxPool2d(2, 2) #2x2 pooling
-        self.conv2 = nn.Conv2d(6, 12, 5)
+        self.conv2 = nn.Conv2d(10, 12, 5)
         self.fc1 = nn.Linear(12 * 4 * 4, 1000)
         self.fc2 = nn.Linear(1000, 10)
         self.fc3 = nn.Linear(100,10)
-        self.q = _q
+        self.q = shared_queue
     
     def forward(self, x):
         print('CPU의 forward 함수 진입!')
-        #x = self.conv1(x)
-        print(self.q.empty())
-        x = self.q.get(True, None).to("cpu")
+        x = self.conv1(x)
+        y = self.q.get(True, None).to("cpu")
+        x = torch.cat((x,y), 1)
         print(x)
         # self.q.put(x)
         x = F.relu(x)
@@ -66,17 +66,17 @@ class Net(nn.Module):
 #        x = self.fc2(x)
         return x
 
-# CUDA
+# CUDA 
 class Net2(nn.Module):
-    def __init__(self, _q):
+    def __init__(self, shared_queue):
         super(Net2, self).__init__()
-        self.conv1 = nn.Conv2d(1, 6, 5) #in, out, filtersize
+        self.conv1 = nn.Conv2d(1, 8, 5) #in, out, filtersize
         self.pool = nn.MaxPool2d(2, 2) #2x2 pooling
         self.conv2 = nn.Conv2d(6, 12, 5)
         self.fc1 = nn.Linear(12 * 4 * 4, 1000)
         self.fc2 = nn.Linear(1000, 10)
         self.fc3 = nn.Linear(100,10)
-        self.q = _q
+        self.q = shared_queue
     
     def forward(self, x):
         print('CUDA의 forward 함수 진입!')
@@ -181,7 +181,6 @@ def main():
     processes = []
     
     for procs in num_processes:
-        time.sleep(10)
         procs.start()
         processes.append(procs)
     
