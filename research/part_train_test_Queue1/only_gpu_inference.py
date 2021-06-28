@@ -88,7 +88,7 @@ def main():
     batch_size = 32
     test_batch_size=16
     log_interval =100
-    pth_path = "/home/yoon/Yoon/pytorch/research/part_train_test/only_gpu.pth"
+    pth_path = "/home/yoon/Yoon/pytorch/research/part_train_test_Queue1/only_gpu.pth"
 
 
     #print(torch.cuda.get_device_name(0))
