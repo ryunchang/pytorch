@@ -32,78 +32,43 @@ rows = 6
 
 # CPU and MAIN
 class Net(nn.Module):
-    def __init__(self, shared_queue):
+    def __init__(self):
         super(Net, self).__init__()
-        self.conv1 = nn.Conv2d(1, 2, 5) #in, out, filtersize
-        self.pool = nn.MaxPool2d(2, 2) #2x2 pooling
-        self.conv2 = nn.Conv2d(10, 12, 5)
-        self.fc1 = nn.Linear(12 * 4 * 4, 1000)
-        self.fc2 = nn.Linear(1000, 10)
-        self.fc3 = nn.Linear(100,10)
-        self.q = shared_queue
-    
-    def forward(self, x):
-        print('CPU의 forward 함수 진입!')
-        x = self.conv1(x)
-        y = self.q.get(True, None).to("cpu")
-        x = torch.cat((x,y), 1)
-        print(x)
-        # self.q.put(x)
-        x = F.relu(x)
-        x = self.pool(x)
-        x = self.conv2(x)
-        x = F.relu(x)
-        x = self.pool(x)
-        x = x.view(-1, 12 * 4 * 4)
-        x = self.fc1(x)
-        x = F.relu(x)
-        x = self.fc2(x)
-        
-#        x = self.pool(F.relu(self.conv1(x)))
-#        x = self.pool(F.relu(self.conv2(x)))
-#        x = x.view(-1, 64 * 4 * 4)
-#        x = F.relu(self.fc1(x))
-#        x = self.fc2(x)
-        return x
-
-# CUDA 
-class Net2(nn.Module):
-    def __init__(self, shared_queue):
-        super(Net2, self).__init__()
-        self.conv1 = nn.Conv2d(1, 8, 5) #in, out, filtersize
+        self.conv1 = nn.Conv2d(1, 6, 5) #in, out, filtersize
         self.pool = nn.MaxPool2d(2, 2) #2x2 pooling
         self.conv2 = nn.Conv2d(6, 12, 5)
         self.fc1 = nn.Linear(12 * 4 * 4, 1000)
         self.fc2 = nn.Linear(1000, 10)
         self.fc3 = nn.Linear(100,10)
-        self.q = shared_queue
     
     def forward(self, x):
-        print('CUDA의 forward 함수 진입!')
-        x = self.conv1(x)
-        self.q.put(x)
-        # print(self.q.empty())
-        # x = self.q.get().to("cuda")
-
-        #print(x.dim())
-        #print(x.size())
-        #print(x[:,:2])
-
-        x = F.relu(x)
-        x = self.pool(x)
-        x = self.conv2(x)
-        x = F.relu(x)
-        x = self.pool(x)
+        x = self.pool(F.relu(self.conv1(x)))
+        x = self.pool(F.relu(self.conv2(x)))
         x = x.view(-1, 12 * 4 * 4)
-        x = self.fc1(x)
-        x = F.relu(x)
+        x = F.relu(self.fc1(x))
         x = self.fc2(x)
         
-#        x = self.pool(F.relu(self.conv1(x)))
-#        x = self.pool(F.relu(self.conv2(x)))
-#        x = x.view(-1, 64 * 4 * 4)
-#        x = F.relu(self.fc1(x))
-#        x = self.fc2(x)
+        return x
+
+# CUDA 
+class Net2(nn.Module):
+    def __init__(self):
+        super(Net2, self).__init__()
+        self.conv1 = nn.Conv2d(1, 6, 5) #in, out, filtersize
+        self.pool = nn.MaxPool2d(2, 2) #2x2 pooling
+        self.conv2 = nn.Conv2d(6, 12, 5)
+        self.fc1 = nn.Linear(12 * 4 * 4, 1000)
+        self.fc2 = nn.Linear(1000, 10)
+        self.fc3 = nn.Linear(100,10)
+ 
+    
+    def forward(self, x):
+        x = self.pool(F.relu(self.conv1(x)))
+        x = self.pool(F.relu(self.conv2(x)))
+        x = x.view(-1, 12 * 4 * 4)
+        x = F.relu(self.fc1(x))
+        x = self.fc2(x)
+
         return x
 
 
@@ -136,8 +101,6 @@ def my_run(model, testset, device):
     inference(model, testset, device)
 
 def main():
-    q = Queue()
-
     use_cuda = torch.cuda.is_available()
     print("use_cude : ", use_cuda)
     #device = torch.device("cuda" if use_cuda else "cpu")
@@ -161,17 +124,17 @@ def main():
                                             shuffle=False, num_workers=nThreads)
 
     # model load
-    model1 = Net(q).to(device1)
-    model2 = Net2(q).to(device2)
+    model1 = Net().to(device1)
+    model2 = Net2().to(device2)
 
     model1.share_memory()
     model2.share_memory()
 
-    # Freeze model weights
-    for param in model1.parameters():  # 전체 layer train해도 파라미터 안바뀌게 프리징
-        param.requires_grad = False
-    for param in model2.parameters():  # 전체 layer train해도 파라미터 안바뀌게 프리징
-        param.requires_grad = False
+    # # Freeze model weights
+    # for param in model1.parameters():  # 전체 layer train해도 파라미터 안바뀌게 프리징
+    #     param.requires_grad = False
+    # for param in model2.parameters():  # 전체 layer train해도 파라미터 안바뀌게 프리징
+    #     param.requires_grad = False
 
 
     proc1 = Process(target=my_run, args=(model1, testset, device1))
@@ -183,19 +146,15 @@ def main():
     for procs in num_processes:
         procs.start()
         processes.append(procs)
+    # proc2.start()
+    # time.sleep(1.5)
+    # proc1.start()
+
+    # proc1.join()
+    # proc2.join()
     
     for proc in processes:
         proc.join()
-
-    # model1.load_state_dict(torch.load("/home/yoon/Yoon/pytorch/research/save_model/fashion_mnist.pth"), strict=False) 
-    # model1.eval()
-    # inference(model1, testset, device1)
-
-    # model2.load_state_dict(torch.load("/home/yoon/Yoon/pytorch/research/save_model/fashion_mnist.pth"), strict=False) 
-    # model2.eval()
-    # inference(model2, testset, device2)
-
-
 
 
  

@@ -28,7 +28,6 @@ class Net(nn.Module):
         self.q = shared_queue
     
     def forward(self, x):
-        print('CPU의 forward 함수 진입!')
         x = self.conv1(x)
         y = self.q.get(True, None).to("cpu")
         x = torch.cat((x,y), 1)
@@ -60,13 +59,11 @@ class Net2(nn.Module):
         self.q = shared_queue
     
     def forward(self, x):
-        print('CUDA의 forward 함수 진입!')
         x = self.conv1(x)
         self.q.put(x)
         x = self.q.get(True,None).to("cuda")
         x = self.conv2(x)
         self.q.put(x)
-
         self.q.get(True, None).to("cuda")
         return x
 
@@ -112,10 +109,10 @@ def test(model, device, test_loader):
 
 def my_run(args):
     start_time = time.time()
-    for epoch in range(1, args[5] + 1):
+    for epoch in range(1, args[6] + 1):
         print(args[2], "에서", epoch, "회 에폭 실행")
-        train(args[0], args[1], args[2], args[3], args[4], epoch)
-        test(args[1], args[2], args[3])
+        train(args[0], args[1], args[2], args[3], args[5], epoch)
+        test(args[1], args[2], args[4])
     stop_time = time.time()
     print("duration : ", stop_time - start_time)
 
@@ -163,13 +160,7 @@ def main():
     test_loader = torch.utils.data.DataLoader(testset, batch_size=test_batch_size,
                                             shuffle=False, num_workers=nThreads)
     
-    # imshow example
-    #index = 0
-    #imshow(testset[index][0])
-    
-    # constant for classes
-    classes = ('T-shirt/top', 'Trouser', 'Pullover', 'Dress', 'Coat',
-            'Sandal', 'Shirt', 'Sneaker', 'Bag', 'Ankle Boot')
+
     # model
     model1 = Net(q).to(device1)
     model1.share_memory()
@@ -187,8 +178,8 @@ def main():
     optimizer1 = optim.Adam(model1.parameters(),lr=learning_rate)
     optimizer2 = optim.Adam(model2.parameters(),lr=learning_rate)
 
-    device_args1 = (log_interval, model1, device1, train_loader, optimizer1, epochs)
-    device_args2 = (log_interval, model2, device2, train_loader, optimizer2, epochs)
+    device_args1 = (log_interval, model1, device1, train_loader, test_loader, optimizer1, epochs)
+    device_args2 = (log_interval, model2, device2, train_loader, test_loader, optimizer2, epochs)
 
     proc1 = Process(target=my_run, args=(device_args1,))
     proc2 = Process(target=my_run, args=(device_args2,))

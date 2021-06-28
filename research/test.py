@@ -1,38 +1,178 @@
-from __future__ import print_function
+
+import torchvision
+import torchvision.transforms as transforms
 import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import torch.optim as optim
+from torchsummary import summary
+
+import platform
+import matplotlib.pyplot as plt
 import numpy as np
 
-#print(torch.cuda.is_available())
-x = torch.tensor([[[[1,2],[3,4]]]])
-y = torch.tensor([[[[5,6],[7,8]]]])
-#if torch.cuda.is_available():
-#    device = torch.device("cuda") # a CUDA device object
-#    y = torch.ones_like(x, device=device) # directly create a tensor on GPU
-#
-#print(x) 
-#print(y) # y는 GPU 메모리에 올라간다.
-#x = x.to(device) 
-#z = x + y   # x와 y의 위치가 다르니깐 x를 gpu로 보내어 계산
-#print(z)
-#print(z.to("cpu", torch.double)) # cpu로 옮길 수 있음 (데이터 타입 정의가능)
-#
-#
-#a = torch.ones(5)
-#print(a)
-#b = a.numpy() # numpy변환가능
-#print(b)
-#c = x.detach().cpu().numpy()    # x는 gpu에 있으므로 cpu로 detach작업해야함
-#print(c)
-#
-#d = np.ones(5)
-#e = torch.from_numpy(d) # cpu 일때
-#f = torch.from_numpy(d).float().to(device)
-## np.add(d, 1, out=d)
-## print(d)
-#print(e)
-#print(f)
-#
-#print("------")
-#print(x[0])
+import time
+from torch.multiprocessing import Process, Queue
 
-print(torch.cat((x,y),1))
+label_tags = {
+    0: 'T-Shirt', 
+    1: 'Trouser', 
+    2: 'Pullover', 
+    3: 'Dress', 
+    4: 'Coat', 
+    5: 'Sandal', 
+    6: 'Shirt',
+    7: 'Sneaker', 
+    8: 'Bag', 
+    9: 'Ankle Boot' }
+    
+test_batch_size=1000
+columns = 6
+rows = 6
+
+# CPU and MAIN
+class Net(nn.Module):
+    def __init__(self, shared_queue):
+        super(Net, self).__init__()
+        self.conv1 = nn.Conv2d(1, 6, 5) #in, out, filtersize
+        self.pool = nn.MaxPool2d(2, 2) #2x2 pooling
+        self.conv2 = nn.Conv2d(6, 12, 5)
+        self.fc1 = nn.Linear(12 * 4 * 4, 1000)
+        self.fc2 = nn.Linear(1000, 10)
+        self.fc3 = nn.Linear(100,10)
+        self.q = shared_queue
+    
+    def forward(self, x):
+        #x = self.conv1(x)
+        x = self.q.get(True, None).to("cpu")
+        x = F.relu(x)
+        x = self.pool(x)
+        x = self.conv2(x)
+        x = F.relu(x)
+        x = self.pool(x)
+        x = x.view(-1, 12 * 4 * 4)
+        x = self.fc1(x)
+        x = F.relu(x)
+        x = self.fc2(x)
+
+        return x
+
+# CUDA 
+class Net2(nn.Module):
+    def __init__(self, shared_queue):
+        super(Net2, self).__init__()
+        self.conv1 = nn.Conv2d(1, 6, 5) #in, out, filtersize
+        self.pool = nn.MaxPool2d(2, 2) #2x2 pooling
+        self.conv2 = nn.Conv2d(6, 12, 5)
+        self.fc1 = nn.Linear(12 * 4 * 4, 1000)
+        self.fc2 = nn.Linear(1000, 10)
+        self.fc3 = nn.Linear(100,10)
+        self.q = shared_queue
+    
+    def forward(self, x):
+        x = self.conv1(x)
+        self.q.put(x)
+        x = F.relu(x)
+        x = self.pool(x)
+        x = self.conv2(x)
+        x = F.relu(x)
+        x = self.pool(x)
+        x = x.view(-1, 12 * 4 * 4)
+        x = self.fc1(x)
+        x = F.relu(x)
+        x = self.fc2(x)
+
+        return x
+
+
+def inference(model, testset, device):
+    fig = plt.figure(figsize=(10,10))
+    plt.title(device, pad=50)
+    for i in range(1, columns*rows+1):
+        data_idx = 1 #np.random.randint(len(testset))
+        input_img = testset[data_idx][0].unsqueeze(dim=0).to(device) 
+        output = model(input_img)
+        _, argmax = torch.max(output, 1)
+        pred = label_tags[argmax.item()]
+        label = label_tags[testset[data_idx][1]]
+        
+        fig.add_subplot(rows, columns, i)
+        if pred == label:
+            plt.title(pred + ', right !!')
+            cmap = 'Blues'
+        else:
+            plt.title('Not ' + pred + ' but ' +  label)
+            cmap = 'Reds'
+        plot_img = testset[data_idx][0][0,:,:]
+        plt.imshow(plot_img, cmap=cmap)
+        plt.axis('off')
+    plt.show() 
+
+def my_run(model, testset, device):
+    model.load_state_dict(torch.load("/home/yoon/Yoon/pytorch/research/save_model/fashion_mnist.pth"), strict=False) 
+    model.eval()
+    inference(model, testset, device)
+
+def main():
+    q = Queue()
+    use_cuda = torch.cuda.is_available()
+    print("use_cude : ", use_cuda)
+    #device = torch.device("cuda" if use_cuda else "cpu")
+    device1 = "cpu"
+    device2 = "cuda"
+
+    nThreads = 1 if use_cuda else 2 
+    if platform.system() == 'Windows':
+        nThreads =0 #if you use windows
+
+    transform = transforms.Compose(
+        [transforms.ToTensor(),
+        transforms.Normalize((0.5,), (0.5,))])
+
+    testset = torchvision.datasets.FashionMNIST('./data',
+        download=True,
+        train=False,
+        transform=transform)
+
+    test_loader = torch.utils.data.DataLoader(testset, batch_size=test_batch_size,
+                                            shuffle=False, num_workers=nThreads)
+
+    # model load
+    model1 = Net(q).to(device1)
+    model2 = Net2(q).to(device2)
+
+    model1.share_memory()
+    model2.share_memory()
+
+    # Freeze model weights
+    for param in model1.parameters():  # 전체 layer train해도 파라미터 안바뀌게 프리징
+        param.requires_grad = False
+    for param in model2.parameters():  # 전체 layer train해도 파라미터 안바뀌게 프리징
+        param.requires_grad = False
+
+
+    proc1 = Process(target=my_run, args=(model1, testset, device1))
+    proc2 = Process(target=my_run, args=(model2, testset, device2))
+
+    num_processes = (proc1, proc2) 
+    processes = []
+    
+    for procs in num_processes:
+        procs.start()
+        processes.append(procs)
+    # proc1.start()
+    # time.sleep(10)
+    # proc2.start()
+
+    # proc1.join()
+    # proc2.join()
+    
+    for proc in processes:
+        proc.join()
+
+
+ 
+if __name__ == '__main__':
+    torch.multiprocessing.set_start_method('spawn')# good solution !!!
+    main()
+
