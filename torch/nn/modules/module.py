@@ -527,9 +527,9 @@ class Module:
 
     def _apply(self, fn):
         for module in self.children():
-            print(module, "모듈 _apply() 시작")
+            #print(module, "모듈 _apply() 시작")
             module._apply(fn)
-            print(module, "모듈 _apply() 끝")
+            #print(module, "모듈 _apply() 끝")
 
         def compute_should_use_set_data(tensor, tensor_applied):
             if torch._has_compatible_shallow_copy_type(tensor, tensor_applied):
@@ -784,7 +784,7 @@ class Module:
                     [0.6122+0.j, 0.1150+0.j]], dtype=torch.complex128)
 
         """
-        print("to()매서드 호출")
+        #print("to()매서드 호출")
         
         device, dtype, non_blocking, convert_to_format = torch._C._nn._parse_to(*args, **kwargs)
 
@@ -800,7 +800,7 @@ class Module:
                     "if a complex module does not work as expected.")
 
         def convert(t):
-            print("convert(t) 함수 호출")
+            #print("convert(t) 함수 호출")
             #print("device 변수 : ", device)
             if convert_to_format is not None and t.dim() == 4:
                 return t.to(device, dtype if t.is_floating_point() or t.is_complex() else None,

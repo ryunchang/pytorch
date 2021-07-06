@@ -48,11 +48,9 @@ class Net(nn.Module):
         x = self.q2.get(True, None).to("cpu")
         x = self.conv1(x)
         self.q1.put(x)
-        print("CPU에서 첫번째 인풋 넣음")
         x = self.q2.get(True, None).to("cpu")
         x = self.conv2(x)
         self.q1.put(x)
-        print("CPU에서 두번째 인풋 넣음")
         x = self.q2.get(True, None).to("cpu")
         return x
 
@@ -72,7 +70,6 @@ class Net2(nn.Module):
     def forward(self, x):
         self.q2.put(x)
         x = self.conv1(x)
-        print("CUDA에서 첫번째 인풋 기다림")
         y = self.q1.get(True, None).to("cuda")
         x = torch.cat((x,y), 1)
         x = F.relu(x)
@@ -80,7 +77,6 @@ class Net2(nn.Module):
         #time.sleep(0.005)
         self.q2.put(x)
         x = self.conv2(x)
-        print("CUDA에서 두번째 인풋 기다림")
         y = self.q1.get(True, None).to("cuda")
         x = torch.cat((x,y),1)
         x = F.relu(x)
@@ -101,10 +97,8 @@ def inference(model, testset, device, q):
         print("-----------------------------")
         data_idx = np.random.randint(len(testset))
         if q.empty():
-            print(device, "에서 첫인풋 넣음")
             q.put(data_idx)
         else:
-            print(device, "에서 첫인풋 받음")
             data_idx = q.get(True, None)
         input_img = testset[data_idx][0].unsqueeze(dim=0).to(device) 
         output = model(input_img)
@@ -123,7 +117,7 @@ def inference(model, testset, device, q):
         plt.imshow(plot_img, cmap=cmap)
         plt.axis('off')
         print("-----------------------------")
-    #plt.show()      # If you want to measure inferencing time, comment out this line
+    plt.show()      # If you want to measure inferencing time, comment out this line
 
 
 def my_run(model, testset, device, pth_path, q):
@@ -199,7 +193,7 @@ def main():
     for procs in num_processes:
         procs.start()
         processes.append(procs)
-        time.sleep(2)
+        #time.sleep(2)
 
     for proc in processes:
         proc.join()

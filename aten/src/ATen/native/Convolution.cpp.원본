@@ -754,6 +754,7 @@ at::Tensor _convolution(
     }
   } else if (params.use_mkldnn(input, weight)) {
 #if AT_MKLDNN_ENABLED()
+	std::cout << params << std::endl;
     TORCH_CHECK(input.options().type_equal(weight.options())
              || (input.is_mkldnn() && weight.device().is_cpu() && weight.scalar_type() == kFloat),
              "Input type (", input.toString(), ") and weight type (", weight.toString(),

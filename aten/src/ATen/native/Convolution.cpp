@@ -561,6 +561,15 @@ at::Tensor conv1d(
 at::Tensor conv2d(
     const Tensor& input, const Tensor& weight, const Tensor& bias,
     IntArrayRef stride, IntArrayRef padding, IntArrayRef dilation, int64_t groups) {
+	// conv2d_input부분
+	  std::cout << "===============================start============================" << std::endl;
+      std::cout << "input : \n" <<input << std::endl;
+      std::cout << "weight : \n" <<weight << std::endl;
+      std::cout << "bias : \n" <<bias << std::endl;
+      std::cout << "stride : \n" <<stride << std::endl;
+      std::cout << "padding : \n" << padding << std::endl;
+      std::cout << "dilation : \n" << dilation << std::endl;
+	  std::cout << "===============================end============================" << std::endl;
   return at::convolution(input, weight, bias, stride, padding, dilation,
                          false, {{0, 0}}, groups);
 }
@@ -758,6 +767,7 @@ at::Tensor _convolution(
   } else if (params.use_mkldnn(input, weight)) {
     std::cout << "use_mkldnn" << std::endl;
 #if AT_MKLDNN_ENABLED()
+    std::cout << params << std::endl;
     TORCH_CHECK(input.options().type_equal(weight.options())
              || (input.is_mkldnn() && weight.device().is_cpu() && weight.scalar_type() == kFloat),
              "Input type (", input.toString(), ") and weight type (", weight.toString(),
@@ -767,6 +777,7 @@ at::Tensor _convolution(
              "Input type (", input.toString(), ") and bias type (", bias.toString(),
              ") should be the same or input should be a MKLDNN tensor and bias is a dense tensor");
     if (!input_is_mkldnn) {
+		std::cout << "!input_is_mkldnn" << std::endl;
       output = at::mkldnn_convolution(input.contiguous(), weight.contiguous(), bias.defined() ? bias.contiguous() : bias,
                                       params.padding, params.stride, params.dilation, params.groups);
     } else {
